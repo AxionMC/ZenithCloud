@@ -1,0 +1,88 @@
+name: build-client
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: build-client-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Build Web Client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: "0"
+
+      - name: Build web client
+        run: pnpm --filter @zcode/web build
+        env:
+          ZCODE_ENV: production
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenithcloud-web
+          path: packages/web/dist
+          if-no-files-found: error
+
+  desktop-windows:
+    name: Build Windows Desktop Client (manual)
+    # 桌面端打包较重且包含原生依赖，默认只在手动触发时运行。
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: "0"
+
+      - name: Build and package Windows desktop client
+        run: pnpm --filter @zcode/desktop run bundle -- --os win --arch x64
+        env:
+          ZCODE_ENV: production
+          # 无签名证书时跳过签名，产出未签名安装包。
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload desktop artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenithcloud-windows-x64
+          path: |
+            packages/desktop/dist/*.exe
+            packages/desktop/dist/*.exe.blockmap
+            packages/desktop/dist/latest.yml
+          if-no-files-found: error

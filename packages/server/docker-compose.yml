@@ -1,0 +1,34 @@
+services:
+  zenithcloud-server:
+    build:
+      # 构建上下文必须是仓库根目录（pnpm workspace 需要完整仓库）。
+      # 默认按本文件位置向上两级；compose 文件被单独复制出去时用
+      # ZENITH_REPO_ROOT=/path/to/ZenithCloud 指定。
+      context: ${ZENITH_REPO_ROOT:-../..}
+      dockerfile: packages/server/Dockerfile
+    image: zenithcloud-server:latest
+    container_name: zenithcloud-server
+    restart: unless-stopped
+    ports:
+      # 宿主机已有 Nginx 时，可把这里改成 "127.0.0.1:2055:2055" 只监听本机。
+      - "2055:2055"
+    environment:
+      PORT: "2055"
+      HOST: "0.0.0.0"
+      ZCODE_SERVER_HOST: "0.0.0.0"
+      ZCODE_ENV: "production"
+      ZENITH_DATA_DIR: "/data"
+      # 管理员账号（首次启动创建；登录后台可用 CLzimo，大小写不敏感）。
+      ZENITH_ADMIN_EMAIL: "CLzimo"
+      ZENITH_ADMIN_PASSWORD: "qwertyuiop1234"
+      # 同机客户端免 Key 接入时可打开：
+      # ZENITH_LOCAL_GATEWAY: "1"
+      # 客户端与服务器不在同一台机器（走公网域名）时，再打开：
+      # ZENITH_LOCAL_GATEWAY_ALLOW_REMOTE: "1"
+      # 让桌面端/CLI 从本服务拉插件目录时可打开：
+      # ZENITH_PLUGIN_MARKETPLACE_URL: "http://127.0.0.1:2055/api/plugins/marketplace.json"
+    volumes:
+      - zenithcloud-data:/data
+
+volumes:
+  zenithcloud-data:
